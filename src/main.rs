@@ -37,9 +37,23 @@ struct ListTasksRequest {
     /// All list operations are project-scoped by default to avoid dumping thousands of unrelated
     /// tasks into context. Set all_projects=true only for genuine cross-project needs.
     project: String,
-    /// Additional filter tokens beyond the project scope, e.g. "+urgent", "priority:H", "+OVERDUE"
+    /// Narrow the results — ALWAYS provide this unless you genuinely need every pending task.
+    /// Match the filter to your intent:
+    ///   ready/actionable tasks  → "+READY"
+    ///   overdue                 → "+OVERDUE"
+    ///   due today               → "+TODAY"
+    ///   high priority           → "priority:H"
+    ///   tagged urgent           → "+urgent"
+    ///   blocked on others       → "+BLOCKED"
+    ///   combine freely          → "+READY priority:H"
     filter: Option<String>,
-    /// Report to run: next (default, urgency-sorted), list, all, completed, waiting, blocked
+    /// Report type — pick the one that matches your intent instead of listing everything:
+    ///   "next"      (default) urgency-sorted pending tasks — use for "what should I work on"
+    ///   "blocked"   tasks waiting on dependencies
+    ///   "waiting"   snoozed/deferred tasks
+    ///   "completed" recently done tasks
+    ///   "list"      flat pending view (no urgency sort)
+    ///   "all"       includes completed — expensive, avoid unless history is needed
     report: Option<String>,
     /// Override project scoping and query ALL projects. Only use when the request is explicitly
     /// cross-project (e.g. "show me everything overdue across all projects").
@@ -177,10 +191,13 @@ impl TaskWarriorServer {
     }
 
     #[tool(description = "\
-        List tasks sorted by urgency. `project` is REQUIRED and is automatically prepended \
-        as a filter to prevent loading thousands of unrelated tasks into context. \
-        Use `filter` for additional narrowing (+urgent, priority:H, +OVERDUE, +DUE, +READY, +BLOCKED). \
-        Use `report` to switch views: next (default), list, all, completed, waiting, blocked. \
+        List tasks sorted by urgency. `project` is REQUIRED. \
+        ALWAYS use the most specific `filter` and `report` for your intent — \
+        do NOT call with no filter unless you genuinely need every pending task. \
+        Quick reference: actionable work → filter='+READY' or report='next'; \
+        overdue → filter='+OVERDUE'; due today → filter='+TODAY'; \
+        blocked → filter='+BLOCKED' or report='blocked'; \
+        high priority → filter='priority:H'; waiting/snoozed → report='waiting'. \
         Only set `all_projects=true` for explicit cross-project requests.")]
     async fn list_tasks(
         &self,
@@ -323,6 +340,10 @@ impl ServerHandler for TaskWarriorServer {
                 automatically prepend it as a filter — this prevents thousands of unrelated tasks \
                 from flooding context. Only pass all_projects=true when the user explicitly asks \
                 for a cross-project view. \
+                FILTER DISCIPLINE: never call list_tasks without a filter or a non-default report \
+                unless every pending task is genuinely needed. Match filter/report to intent: \
+                actionable → filter='+READY'; overdue → filter='+OVERDUE'; today → filter='+TODAY'; \
+                blocked → filter='+BLOCKED'; snoozed → report='waiting'; history → report='completed'. \
                 Tools: add_task · list_tasks · search_tasks · get_task · modify_task · complete_task · delete_task · annotate_task. \
                 Date syntax: today · tomorrow · eow · eom · friday · 2025-06-15 · 2025-06-15T14:30. \
                 Virtual filter tags: +OVERDUE · +DUE · +READY · +BLOCKED · +BLOCKING · +ACTIVE · +WAITING · +TODAY."
