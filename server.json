@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.KaiErikNiermann/task-warrior-mcp",
   "title": "Taskwarrior MCP",
-  "description": "MCP server wrapping the Taskwarrior CLI. Gives Claude structured, project-scoped access to your tasks via add, list, search, get, modify, complete, delete, and annotate operations.",
+  "description": "MCP server wrapping the Taskwarrior CLI for structured, project-scoped task management.",
   "version": "0.1.1",
   "packages": [
     {
