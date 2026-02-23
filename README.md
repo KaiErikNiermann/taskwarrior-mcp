@@ -8,10 +8,17 @@ Every read and write operation requires a `project` field. The server automatica
 
 ## Requirements
 
-- [Rust](https://rustup.rs) (stable)
 - [Taskwarrior](https://taskwarrior.org/download/) (`task` on `$PATH`)
 
 ## Installation
+
+### From MCP Registry (recommended)
+
+Find `task-warrior-mcp` on the [MCP Registry](https://registry.modelcontextprotocol.io) and follow the installation prompt in your MCP client. No build step required.
+
+### From source
+
+Requires [Rust](https://rustup.rs) (stable).
 
 ```sh
 git clone https://github.com/<you>/task-warrior-mcp
@@ -24,6 +31,8 @@ The binary lands at `target/release/task-warrior-mcp`.
 ## Configuration
 
 ### Claude Code (global, all sessions)
+
+If installed via the MCP registry, your client handles configuration automatically. For a local build:
 
 ```sh
 claude mcp add --scope user taskwarrior /path/to/task-warrior-mcp/target/release/task-warrior-mcp
@@ -79,15 +88,31 @@ Merge the snippet below into your `claude_desktop_config.json` (replace `<INSTAL
 ## Development
 
 ```sh
-cargo test          # run all 14 tests (each isolated in a temp taskwarrior DB)
-cargo clippy        # lint
-cargo fmt           # format
+just build          # cargo build --release
+just test           # run all tests (each isolated in a temp taskwarrior DB)
+just lint           # clippy + fmt check
 ```
 
-A pre-push hook runs fmt + clippy + tests automatically:
+Or use cargo directly:
 
 ```sh
-# already in .git/hooks/pre-push after cloning — no setup needed
+cargo test
+cargo clippy
+cargo fmt
 ```
 
+A pre-push hook runs fmt + clippy + tests automatically — no setup needed after cloning.
+
 CI runs the same checks on every push and PR via GitHub Actions.
+
+### Releasing
+
+Requires: [`just`](https://github.com/casey/just), [`gh`](https://cli.github.com), `jq`, `openssl`, and [`cargo-edit`](https://github.com/killercup/cargo-edit) (`just setup`).
+
+```sh
+just setup                  # install cargo-edit (one-time)
+just release                # bump patch, build, push tag, create GitHub release, update server.json
+just release minor          # bump minor version
+just release-version 1.2.3  # explicit version
+just publish                # push server.json to the MCP registry (after mcp-publisher login)
+```

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.YOUR_GITHUB_USERNAME/task-warrior-mcp",
+  "title": "Taskwarrior MCP",
+  "description": "MCP server wrapping the Taskwarrior CLI. Gives Claude structured, project-scoped access to your tasks via add, list, search, get, modify, complete, delete, and annotate operations.",
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/YOUR_GITHUB_USERNAME/task-warrior-mcp/releases/download/v0.1.0/task-warrior-mcp.mcpb",
+      "fileSha256": "REPLACE_ON_FIRST_RELEASE",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/YOUR_GITHUB_USERNAME/task-warrior-mcp",
+    "source": "github"
+  }
+}
