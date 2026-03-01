@@ -74,13 +74,13 @@ struct SearchTasksRequest {
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct TaskIdRequest {
-    /// Task ID (numeric) or UUID
+    /// Task ID (numeric) or UUID. Prefer UUIDs for stability — numeric IDs shift after complete/delete.
     id: String,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct ModifyTaskRequest {
-    /// Task ID (numeric) or UUID
+    /// Task ID (numeric) or UUID. Prefer UUIDs for stability — numeric IDs shift after complete/delete.
     id: String,
     /// Space-separated modification tokens, e.g. "due:friday priority:H +urgent -old project:Work".
     /// Clear a field by omitting its value: "due: priority:"
@@ -89,7 +89,7 @@ struct ModifyTaskRequest {
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct AnnotateTaskRequest {
-    /// Task ID (numeric) or UUID
+    /// Task ID (numeric) or UUID. Prefer UUIDs for stability — numeric IDs shift after complete/delete.
     id: String,
     /// Note text to attach; timestamped automatically by Taskwarrior
     note: String,
@@ -108,6 +108,7 @@ impl TaskWarriorServer {
     async fn run(&self, args: &[&str]) -> Result<String, McpError> {
         let mut cmd = Command::new("task");
         cmd.arg("rc.confirmation=no");
+        cmd.arg("rc.defaultwidth=0");
         if let Some(dir) = &self.data_dir {
             cmd.arg(format!("rc.data.location={}", dir.display()));
         }
@@ -287,24 +288,42 @@ impl TaskWarriorServer {
         )]))
     }
 
-    #[tool(description = "Mark a task as completed.")]
+    #[tool(description = "\
+        Mark a task as completed. Returns the completed task's UUID. \
+        WARNING: Completing a task causes Taskwarrior to reassign numeric IDs \
+        for all remaining tasks. Always re-list tasks or use UUIDs after completing.")]
     async fn complete_task(
         &self,
         Parameters(req): Parameters<TaskIdRequest>,
     ) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::text(
-            self.run(&[&req.id, "done"]).await?,
-        )]))
+        let uuid = self.run(&[&req.id, "uuids"]).await.unwrap_or_default();
+        let done_output = self.run(&[&req.id, "done"]).await?;
+        let msg = format!(
+            "{done_output}\n\
+             Note: The UUID for the completed task was {uuid}. \
+             Numeric IDs for remaining tasks may have shifted — \
+             re-list before using numeric IDs."
+        );
+        Ok(CallToolResult::success(vec![Content::text(msg)]))
     }
 
-    #[tool(description = "Permanently delete a task.")]
+    #[tool(description = "\
+        Permanently delete a task. Returns the deleted task's UUID. \
+        WARNING: Deleting a task causes Taskwarrior to reassign numeric IDs \
+        for all remaining tasks. Always re-list tasks or use UUIDs after deleting.")]
     async fn delete_task(
         &self,
         Parameters(req): Parameters<TaskIdRequest>,
     ) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::text(
-            self.run(&[&req.id, "delete"]).await?,
-        )]))
+        let uuid = self.run(&[&req.id, "uuids"]).await.unwrap_or_default();
+        let delete_output = self.run(&[&req.id, "delete"]).await?;
+        let msg = format!(
+            "{delete_output}\n\
+             Note: The UUID for the deleted task was {uuid}. \
+             Numeric IDs for remaining tasks may have shifted — \
+             re-list before using numeric IDs."
+        );
+        Ok(CallToolResult::success(vec![Content::text(msg)]))
     }
 
     #[tool(description = "\
@@ -346,7 +365,9 @@ impl ServerHandler for TaskWarriorServer {
                 blocked → filter='+BLOCKED'; snoozed → report='waiting'; history → report='completed'. \
                 Tools: add_task · list_tasks · search_tasks · get_task · modify_task · complete_task · delete_task · annotate_task. \
                 Date syntax: today · tomorrow · eow · eom · friday · 2025-06-15 · 2025-06-15T14:30. \
-                Virtual filter tags: +OVERDUE · +DUE · +READY · +BLOCKED · +BLOCKING · +ACTIVE · +WAITING · +TODAY."
+                Virtual filter tags: +OVERDUE · +DUE · +READY · +BLOCKED · +BLOCKING · +ACTIVE · +WAITING · +TODAY. \
+                IMPORTANT: Numeric task IDs shift after complete/delete — always re-list tasks to \
+                refresh IDs, or use UUIDs for stable references."
                 .to_string(),
             ),
         }
