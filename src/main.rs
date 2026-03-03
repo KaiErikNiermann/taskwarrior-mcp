@@ -273,9 +273,37 @@ impl TaskWarriorServer {
     }
 
     #[tool(description = "\
+        Start actively working on a task. This sets the task's start timestamp so \
+        Taskwarrior tracks time spent. Use stop_task when you pause or finish. \
+        Do NOT use modify_task with '+ACTIVE' — ACTIVE is a virtual tag, not a real one.")]
+    async fn start_task(
+        &self,
+        Parameters(req): Parameters<TaskIdRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(CallToolResult::success(vec![Content::text(
+            self.run(&[&req.id, "start"]).await?,
+        )]))
+    }
+
+    #[tool(description = "\
+        Stop the clock on a task you previously started. The task remains pending \
+        but is no longer active.")]
+    async fn stop_task(
+        &self,
+        Parameters(req): Parameters<TaskIdRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(CallToolResult::success(vec![Content::text(
+            self.run(&[&req.id, "stop"]).await?,
+        )]))
+    }
+
+    #[tool(description = "\
         Modify a task's attributes. Pass modifications as a space-separated string: \
         'due:friday priority:H +newtag -oldtag project:Work'. \
-        Clear a field by omitting its value: 'due: priority:'.")]
+        Clear a field by omitting its value: 'due: priority:'. \
+        NEVER pass virtual tags (+ACTIVE, +BLOCKED, +READY, +OVERDUE, +TODAY, etc.) \
+        as modifications — they are read-only filters, not real tags. \
+        To start/stop a task, use start_task/stop_task instead.")]
     async fn modify_task(
         &self,
         Parameters(req): Parameters<ModifyTaskRequest>,
@@ -363,9 +391,11 @@ impl ServerHandler for TaskWarriorServer {
                 unless every pending task is genuinely needed. Match filter/report to intent: \
                 actionable → filter='+READY'; overdue → filter='+OVERDUE'; today → filter='+TODAY'; \
                 blocked → filter='+BLOCKED'; snoozed → report='waiting'; history → report='completed'. \
-                Tools: add_task · list_tasks · search_tasks · get_task · modify_task · complete_task · delete_task · annotate_task. \
+                Tools: add_task · list_tasks · search_tasks · get_task · modify_task · start_task · stop_task · complete_task · delete_task · annotate_task. \
                 Date syntax: today · tomorrow · eow · eom · friday · 2025-06-15 · 2025-06-15T14:30. \
                 Virtual filter tags: +OVERDUE · +DUE · +READY · +BLOCKED · +BLOCKING · +ACTIVE · +WAITING · +TODAY. \
+                IMPORTANT: Virtual tags are READ-ONLY filters — never pass them to modify_task. \
+                To start/stop working on a task, use start_task/stop_task (NOT modify_task with +ACTIVE). \
                 IMPORTANT: Numeric task IDs shift after complete/delete — always re-list tasks to \
                 refresh IDs, or use UUIDs for stable references."
                 .to_string(),
@@ -700,6 +730,64 @@ mod tests {
             .unwrap();
 
         assert!(text_of(&info).contains("newtag"));
+    }
+
+    // ── start_task / stop_task ──────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_start_task_makes_active() {
+        let (_dir, server) = test_server();
+        let id = add_task(&server, "Task to start", "start-test").await;
+
+        let result = server
+            .start_task(Parameters(TaskIdRequest { id: id.clone() }))
+            .await
+            .unwrap();
+
+        assert!(!result.is_error.unwrap_or(false));
+
+        let info = server
+            .get_task(Parameters(TaskIdRequest { id }))
+            .await
+            .unwrap();
+
+        let out = text_of(&info);
+        assert!(
+            out.contains("Start"),
+            "started task should show a Start timestamp"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_stop_task_deactivates() {
+        let (_dir, server) = test_server();
+        let id = add_task(&server, "Task to stop", "stop-test").await;
+
+        // Start first, then stop
+        server
+            .start_task(Parameters(TaskIdRequest { id: id.clone() }))
+            .await
+            .unwrap();
+
+        let result = server
+            .stop_task(Parameters(TaskIdRequest { id: id.clone() }))
+            .await
+            .unwrap();
+
+        assert!(!result.is_error.unwrap_or(false));
+
+        let info = server
+            .get_task(Parameters(TaskIdRequest { id }))
+            .await
+            .unwrap();
+
+        let out = text_of(&info);
+        // After stop, the task should no longer have an active start time
+        // but it should still be pending
+        assert!(
+            out.contains("Pending"),
+            "stopped task should still be pending"
+        );
     }
 
     // ── complete_task ─────────────────────────────────────────────────────────
