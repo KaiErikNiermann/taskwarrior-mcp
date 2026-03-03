@@ -3,12 +3,12 @@
   "name": "io.github.KaiErikNiermann/task-warrior-mcp",
   "title": "Taskwarrior MCP",
   "description": "MCP server wrapping the Taskwarrior CLI for structured, project-scoped task management.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/KaiErikNiermann/taskwarrior-mcp/releases/download/v0.1.1/task-warrior-mcp.mcpb",
-      "fileSha256": "30223c8d3d2b215f02361c10baea2f158a2a44f9807828baa80eb27c17a986c4",
+      "identifier": "https://github.com/KaiErikNiermann/taskwarrior-mcp/releases/download/v0.1.2/task-warrior-mcp.mcpb",
+      "fileSha256": "b06f5fa73696e9662b4102513212c54d1a8c37c7aa00c18f0a80199cad42a61f",
       "transport": {
         "type": "stdio"
       }
