@@ -109,6 +109,7 @@ impl TaskWarriorServer {
         let mut cmd = Command::new("task");
         cmd.arg("rc.confirmation=no");
         cmd.arg("rc.defaultwidth=0");
+        cmd.arg("rc.verbose=affected,new-id,new-uuid,label,project");
         if let Some(dir) = &self.data_dir {
             cmd.arg(format!("rc.data.location={}", dir.display()));
         }
@@ -121,11 +122,19 @@ impl TaskWarriorServer {
 
         let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        // Strip Taskwarrior's informational "Configuration override" lines from stderr
+        // so error messages only contain the actual error.
+        let clean_stderr: String = stderr
+            .lines()
+            .filter(|l| !l.starts_with("Configuration override"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let clean_stderr = clean_stderr.trim().to_string();
 
         if !output.status.success() && stdout.is_empty() {
             return Err(McpError::internal_error(
-                if !stderr.is_empty() {
-                    stderr
+                if !clean_stderr.is_empty() {
+                    clean_stderr
                 } else {
                     format!("task exited with status {}", output.status)
                 },
@@ -133,7 +142,11 @@ impl TaskWarriorServer {
             ));
         }
 
-        Ok(if !stdout.is_empty() { stdout } else { stderr })
+        Ok(if !stdout.is_empty() {
+            stdout
+        } else {
+            clean_stderr
+        })
     }
 }
 
