@@ -383,18 +383,12 @@ impl TaskWarriorServer {
 #[tool_handler]
 impl ServerHandler for TaskWarriorServer {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            protocol_version: ProtocolVersion::V_2024_11_05,
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            server_info: Implementation {
-                name: env!("CARGO_PKG_NAME").to_string(),
-                version: env!("CARGO_PKG_VERSION").to_string(),
-                title: None,
-                description: None,
-                icons: None,
-                website_url: None,
-            },
-            instructions: Some(
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(Implementation::new(
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION"),
+            ))
+            .with_instructions(
                 "Taskwarrior MCP server. PROJECT SCOPING IS MANDATORY: \
                 add_task requires `project`, list_tasks and search_tasks require `project` and \
                 automatically prepend it as a filter — this prevents thousands of unrelated tasks \
@@ -410,10 +404,8 @@ impl ServerHandler for TaskWarriorServer {
                 IMPORTANT: Virtual tags are READ-ONLY filters — never pass them to modify_task. \
                 To start/stop working on a task, use start_task/stop_task (NOT modify_task with +ACTIVE). \
                 IMPORTANT: Numeric task IDs shift after complete/delete — always re-list tasks to \
-                refresh IDs, or use UUIDs for stable references."
-                .to_string(),
-            ),
-        }
+                refresh IDs, or use UUIDs for stable references.",
+            )
     }
 }
 
