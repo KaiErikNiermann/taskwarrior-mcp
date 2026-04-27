@@ -99,6 +99,9 @@ struct AnnotateTaskRequest {
 
 #[derive(Clone)]
 struct TaskWarriorServer {
+    // Read indirectly by the `#[tool_handler]` macro via `Self::tool_router()`,
+    // which clippy's dead_code pass cannot see through.
+    #[allow(dead_code)]
     tool_router: ToolRouter<TaskWarriorServer>,
     /// Overrides the taskwarrior data directory. Used in tests for isolation.
     data_dir: Option<PathBuf>,
